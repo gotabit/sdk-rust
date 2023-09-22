@@ -1,0 +1,31 @@
+[package]
+name = "gotabit-sdk-proto"
+version = "0.1.0"
+authors = [
+    "Jacksoom Liu <lifengliu1994@gmail.com>",
+]
+license = "Apache-2.0"
+repository = "https://github.com/gotabit/gotabit-rust-sdk"
+description = "Protobuf stuct defintions for interacting Gotbait blockchains"
+readme = "README.md"
+categories = ["cryptography", "cryptography::cryptocurrencies", "database"]
+keywords = ["blockchain", "gotabit", "tendermint", "proto"]
+edition = "2021"
+
+[dependencies]
+prost = "0.11"
+prost-types = "0.11"
+tendermint-proto = "0.32"
+
+# Optional dependencies
+tonic = { version = "0.9", optional = true, default-features = false, features = ["codegen", "prost"] }
+
+[features]
+default = ["grpc-transport"]
+grpc = ["tonic"]
+grpc-transport = ["grpc", "tonic/transport"]
+cosmwasm = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
