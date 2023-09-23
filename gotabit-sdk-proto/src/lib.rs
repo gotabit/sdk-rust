@@ -403,3 +403,26 @@ pub mod ibc {
 pub mod ics23 {
     include!("prost/ibc-go/ics23.rs");
 }
+
+/// Gotabit protobuf definitions
+pub mod gotabit {
+    /// Epochs module
+    pub mod epochs {
+        include!("prost/gotabit/gotabit.epochs.rs");
+    }
+
+    /// Inbox module
+    pub mod inbox {
+        include!("prost/gotabit/gotabit.inbox.rs");
+
+        pub mod v1beta1 {
+            include!("prost/gotabit/gotabit.inbox.v1beta1.rs");
+        }
+    }
+    /// Mint module
+    pub mod mint {
+        pub mod v1beta1 {
+            include!("prost/gotabit/gotabit.mint.v1beta1.rs");
+        }
+    }
+}
