@@ -1,3 +1,13 @@
+use cosmrs::crypto::secp256k1::SigningKey;
+use gotabit_sdk_proto::cosmos::auth::v1beta1::{BaseAccount, QueryAccountRequest};
+use gotabit_sdk_proto::cosmos::base::v1beta1::Coin;
+use gotabit_sdk_proto::cosmos::tx::signing::v1beta1::SignMode;
+use gotabit_sdk_proto::cosmos::tx::v1beta1::mode_info::{self};
+use gotabit_sdk_proto::cosmos::tx::v1beta1::{
+    AuthInfo, BroadcastMode, BroadcastTxRequest, Fee, SignDoc, SignerInfo, Tip, TxBody, TxRaw,
+};
+use gotabit_sdk_proto::cosmos::tx::v1beta1::{BroadcastTxResponse, ModeInfo};
+use std::error::Error;
 use tonic::transport::Channel;
 
 use gotabit_sdk_proto::cosmos::{
@@ -30,6 +40,8 @@ use gotabit_sdk_proto::cosmwasm::wasm::v1::{
 };
 
 use crate::networks::NetworkInfo;
+
+use gotabit_sdk_proto::traits::MessageExt;
 
 pub struct Cosmos {
     pub app: AppCli<Channel>,
@@ -120,5 +132,90 @@ impl GrpcClient {
                 wasmd,
             },
         })
+    }
+
+    pub async fn broadcast_tx_sync<T>(
+        &mut self,
+        sign_key: SigningKey,
+        addr: String,
+        msg: T,
+        coin: Coin,
+        memo: String,
+        timeout_height: u64,
+        gas: u64,
+        tx_tip: Option<Tip>,
+    ) -> Result<tonic::Response<BroadcastTxResponse>, Box<dyn Error>>
+    where
+        T: gotabit_sdk_proto::traits::MessageExt + gotabit_sdk_proto::traits::TypeUrl,
+    {
+        // get account seq
+        let base_account_resp = self
+            .clients
+            .cosmos
+            .auth
+            .account(QueryAccountRequest { address: addr })
+            .await?
+            .into_inner();
+        let base_acct: BaseAccount =
+            BaseAccount::from_any(&base_account_resp.account.unwrap()).unwrap();
+
+        // build a simple transfer transction and sign
+        let tx_body = TxBody {
+            messages: vec![msg.to_any().unwrap()],
+            memo,
+            timeout_height,
+            extension_options: Default::default(),
+            non_critical_extension_options: Default::default(),
+        };
+
+        // build a single sign
+        let signer_info = SignerInfo {
+            public_key: Some(sign_key.public_key().into()),
+            mode_info: Some(ModeInfo {
+                sum: Some(mode_info::Sum::Single(mode_info::Single {
+                    mode: SignMode::Direct.into(),
+                })),
+            }),
+            sequence: base_acct.sequence,
+        };
+
+        let auth_info = AuthInfo {
+            signer_infos: vec![signer_info],
+            fee: Some(Fee {
+                amount: vec![coin],
+                gas_limit: gas,
+                payer: Default::default(),
+                granter: Default::default(),
+            }),
+            tip: tx_tip,
+        };
+
+        let sign_doc = SignDoc {
+            body_bytes: tx_body.to_bytes()?,
+            auth_info_bytes: auth_info.to_bytes()?,
+            chain_id: self.chain_id.to_string(),
+            account_number: base_acct.account_number,
+        };
+
+        let sign_doc_bytes = sign_doc.to_bytes()?;
+        let sign = sign_key.sign(&sign_doc_bytes)?;
+
+        let tx_raw = TxRaw {
+            body_bytes: sign_doc.body_bytes,
+            auth_info_bytes: auth_info.to_bytes().unwrap(),
+            signatures: vec![sign.to_vec()],
+        };
+
+        let resp = self
+            .clients
+            .cosmos
+            .tx
+            .broadcast_tx(BroadcastTxRequest {
+                tx_bytes: tx_raw.to_bytes().unwrap(),
+                mode: BroadcastMode::Sync.into(),
+            })
+            .await?;
+
+        Ok(resp)
     }
 }

@@ -651,6 +651,7 @@ dependencies = [
  "log",
  "prost-types",
  "rand_core",
+ "signature",
  "tokio",
  "tonic",
 ]
