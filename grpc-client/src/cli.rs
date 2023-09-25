@@ -136,10 +136,10 @@ impl GrpcClient {
 
     pub async fn broadcast_tx_sync<T>(
         &mut self,
-        sign_key: SigningKey,
-        addr: String,
+        sign_key: &SigningKey,
+        addr: &String,
         msg: T,
-        coin: Coin,
+        coin: &Coin,
         memo: String,
         timeout_height: u64,
         gas: u64,
@@ -153,7 +153,9 @@ impl GrpcClient {
             .clients
             .cosmos
             .auth
-            .account(QueryAccountRequest { address: addr })
+            .account(QueryAccountRequest {
+                address: addr.to_owned(),
+            })
             .await?
             .into_inner();
         let base_acct: BaseAccount =
@@ -182,7 +184,7 @@ impl GrpcClient {
         let auth_info = AuthInfo {
             signer_infos: vec![signer_info],
             fee: Some(Fee {
-                amount: vec![coin],
+                amount: vec![coin.clone()],
                 gas_limit: gas,
                 payer: Default::default(),
                 granter: Default::default(),
