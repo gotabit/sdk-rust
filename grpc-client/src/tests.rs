@@ -2,22 +2,12 @@ use crate::{cli::GrpcClient, networks::TEST_NET};
 
 use gotabit_sdk_proto::cosmos::bank::v1beta1::MsgSend;
 use gotabit_sdk_proto::cosmos::base::v1beta1::Coin;
-use gotabit_sdk_proto::cosmos::tx::v1beta1::{
-    mode_info, AuthInfo, BroadcastMode, BroadcastTxRequest, Fee, ModeInfo, SignDoc, SignerInfo,
-    TxBody, TxRaw,
-};
 
 use cosmrs::crypto::secp256k1;
-use gotabit_sdk_proto::cosmos::tx::signing::v1beta1::SignMode;
+use gotabit_sdk_proto::cosmos::bank::v1beta1::QueryBalanceRequest;
 use gotabit_sdk_proto::cosmwasm::wasm::v1::QueryContractInfoRequest;
-use gotabit_sdk_proto::{
-    cosmos::auth::v1beta1::BaseAccount, cosmos::auth::v1beta1::QueryAccountRequest,
-    cosmos::bank::v1beta1::QueryBalanceRequest, traits::MessageExt,
-};
 
 use bip32::{Mnemonic, XPrv};
-
-use gotabit_sdk_proto::cosmos::auth::v1beta1::BaseAccount as BaseAcct;
 
 const GIO_PREFIX: &'static str = "gio";
 
@@ -71,86 +61,27 @@ async fn test_submit_tx() {
     // create grpc client by given address
     let mut client = GrpcClient::new(&TEST_NET).await.unwrap();
 
-    // query sender base_account infomation
-    let resp = client
-        .clients
-        .cosmos
-        .auth
-        .account(QueryAccountRequest {
-            address: sender_account_id.to_string(),
-        })
-        .await
-        .unwrap()
-        .into_inner();
-
-    let base_acct: BaseAccount = BaseAcct::from_any(&resp.account.unwrap()).unwrap();
-
-    // Transaction metadata: chain, account, sequence, gas, fee, timeout, and memo.
     let gas = 100_000u64;
     let timeout_height = 11358142;
     let memo = "example memo".to_string();
 
-    // build a simple transfer transction and sign
-    let tx_body = TxBody {
-        messages: vec![msg_send.to_any().unwrap()],
-        memo,
-        timeout_height,
-        extension_options: Default::default(),
-        non_critical_extension_options: Default::default(),
-    };
-    // build a single sign
-    let signer_info = SignerInfo {
-        public_key: Some(sender_public_key.into()),
-        mode_info: Some(ModeInfo {
-            sum: Some(mode_info::Sum::Single(mode_info::Single {
-                mode: SignMode::Direct.into(),
-            })),
-        }),
-        sequence: base_acct.sequence,
-    };
-
-    let auth_info = AuthInfo {
-        signer_infos: vec![signer_info],
-        fee: Some(Fee {
-            amount: vec![coin],
-            gas_limit: gas,
-            payer: Default::default(),
-            granter: Default::default(),
-        }),
-        tip: None,
-    };
-
-    let sign_doc = SignDoc {
-        body_bytes: tx_body.to_bytes().unwrap(),
-        auth_info_bytes: auth_info.to_bytes().unwrap(),
-        chain_id: client.chain_id.to_string(),
-        account_number: base_acct.account_number,
-    };
-
-    let sign_doc_bytes = sign_doc.to_bytes().unwrap();
-    let sign = sender_private_key.sign(&sign_doc_bytes).unwrap();
-
-    let tx_raw = TxRaw {
-        body_bytes: sign_doc.body_bytes,
-        auth_info_bytes: auth_info.to_bytes().unwrap(),
-        signatures: vec![sign.to_vec()],
-    };
-    // broadcast signed transaction
     let resp = client
-        .clients
-        .cosmos
-        .tx
-        .broadcast_tx(BroadcastTxRequest {
-            tx_bytes: tx_raw.to_bytes().unwrap(),
-            mode: BroadcastMode::Sync.into(),
-        })
+        .broadcast_tx_sync(
+            sender_private_key,
+            sender_account_id.to_string(),
+            msg_send,
+            coin,
+            memo,
+            timeout_height,
+            gas,
+            None,
+        )
         .await
-        .unwrap()
-        .into_inner()
-        .tx_response
         .unwrap();
 
-    assert_eq!(resp.code, 0);
+    let response_body = resp.into_inner().tx_response.unwrap();
+
+    assert_eq!(response_body.code, 0);
 }
 
 #[tokio::test]
