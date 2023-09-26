@@ -75,6 +75,7 @@ async fn test_submit_tx() {
             timeout_height,
             gas,
             None,
+            None,
         )
         .await
         .unwrap();
