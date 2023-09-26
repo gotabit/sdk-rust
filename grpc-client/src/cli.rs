@@ -143,24 +143,30 @@ impl GrpcClient {
         memo: String,
         timeout_height: u64,
         gas: u64,
+        // (seq, account_number), if set none. it will query from grpc node
+        acct: Option<(u64, u64)>,
         tx_tip: Option<Tip>,
     ) -> Result<tonic::Response<BroadcastTxResponse>, Box<dyn Error>>
     where
         T: gotabit_sdk_proto::traits::MessageExt + gotabit_sdk_proto::traits::TypeUrl,
     {
-        // get account seq
-        let base_account_resp = self
-            .clients
-            .cosmos
-            .auth
-            .account(QueryAccountRequest {
-                address: addr.to_owned(),
-            })
-            .await?
-            .into_inner();
-        let base_acct: BaseAccount =
-            BaseAccount::from_any(&base_account_resp.account.unwrap()).unwrap();
-
+        let acct_info = if acct.is_some() {
+            acct.unwrap()
+        } else {
+            // get account seq
+            let base_account_resp = self
+                .clients
+                .cosmos
+                .auth
+                .account(QueryAccountRequest {
+                    address: addr.to_owned(),
+                })
+                .await?
+                .into_inner();
+            let base_acct: BaseAccount =
+                BaseAccount::from_any(&base_account_resp.account.unwrap()).unwrap();
+            (base_acct.sequence, base_acct.account_number)
+        };
         // build a simple transfer transction and sign
         let tx_body = TxBody {
             messages: vec![msg.to_any().unwrap()],
@@ -178,7 +184,7 @@ impl GrpcClient {
                     mode: SignMode::Direct.into(),
                 })),
             }),
-            sequence: base_acct.sequence,
+            sequence: acct_info.0,
         };
 
         let auth_info = AuthInfo {
@@ -196,7 +202,7 @@ impl GrpcClient {
             body_bytes: tx_body.to_bytes()?,
             auth_info_bytes: auth_info.to_bytes()?,
             chain_id: self.chain_id.to_string(),
-            account_number: base_acct.account_number,
+            account_number: acct_info.1,
         };
 
         let sign_doc_bytes = sign_doc.to_bytes()?;
