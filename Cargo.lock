@@ -651,6 +651,8 @@ dependencies = [
  "log",
  "prost-types",
  "rand_core",
+ "serde",
+ "serde_json",
  "signature",
  "tokio",
  "tonic",

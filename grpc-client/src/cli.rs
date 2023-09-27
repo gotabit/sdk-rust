@@ -7,6 +7,7 @@ use gotabit_sdk_proto::cosmos::tx::v1beta1::{
     AuthInfo, BroadcastMode, BroadcastTxRequest, Fee, SignDoc, SignerInfo, Tip, TxBody, TxRaw,
 };
 use gotabit_sdk_proto::cosmos::tx::v1beta1::{BroadcastTxResponse, ModeInfo};
+use gotabit_sdk_proto::cosmwasm::wasm::v1::QuerySmartContractStateRequest;
 use std::error::Error;
 use tonic::transport::Channel;
 
@@ -134,6 +135,7 @@ impl GrpcClient {
         })
     }
 
+    // Build a raw transaction. sign and broadcast it
     pub async fn broadcast_tx_sync<T>(
         &mut self,
         sign_key: &SigningKey,
@@ -223,6 +225,28 @@ impl GrpcClient {
                 mode: BroadcastMode::Sync.into(),
             })
             .await?;
+
+        Ok(resp)
+    }
+
+    // Call wasm query. and serde json response
+    pub async fn wasm_query<Q: serde::Serialize, R: serde::de::DeserializeOwned>(
+        &mut self,
+        contract_addr: impl Into<String>,
+        msg: Q,
+    ) -> Result<R, Box<dyn Error>> {
+        let resp = self
+            .clients
+            .wasmd
+            .wasmd_query
+            .smart_contract_state(QuerySmartContractStateRequest {
+                address: contract_addr.into(),
+                query_data: serde_json::to_vec(&msg).unwrap(),
+            })
+            .await?
+            .into_inner();
+
+        let resp = serde_json::from_slice::<R>(&resp.data)?;
 
         Ok(resp)
     }
