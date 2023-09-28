@@ -136,6 +136,7 @@ impl GrpcClient {
     }
 
     // Build a raw transaction. sign and broadcast it
+    #[allow(clippy::too_many_arguments)]
     pub async fn broadcast_tx_sync<T>(
         &mut self,
         sign_key: &SigningKey,
@@ -152,8 +153,8 @@ impl GrpcClient {
     where
         T: gotabit_sdk_proto::traits::MessageExt + gotabit_sdk_proto::traits::TypeUrl,
     {
-        let acct_info = if acct.is_some() {
-            acct.unwrap()
+        let acct = if let Some(acct_info) = acct {
+            acct_info
         } else {
             // get account seq
             let base_account_resp = self
@@ -186,7 +187,7 @@ impl GrpcClient {
                     mode: SignMode::Direct.into(),
                 })),
             }),
-            sequence: acct_info.0,
+            sequence: acct.0,
         };
 
         let auth_info = AuthInfo {
@@ -204,7 +205,7 @@ impl GrpcClient {
             body_bytes: tx_body.to_bytes()?,
             auth_info_bytes: auth_info.to_bytes()?,
             chain_id: self.chain_id.to_string(),
-            account_number: acct_info.1,
+            account_number: acct.1,
         };
 
         let sign_doc_bytes = sign_doc.to_bytes()?;
