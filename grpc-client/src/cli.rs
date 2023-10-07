@@ -179,9 +179,13 @@ impl GrpcClient {
             non_critical_extension_options: Default::default(),
         };
 
+        let pubkey = sign_key.public_key().to_any().unwrap();
         // build a single sign
         let signer_info = SignerInfo {
-            public_key: Some(sign_key.public_key().into()),
+            public_key: Some(prost_types::Any {
+                type_url: pubkey.type_url,
+                value: pubkey.value,
+            }),
             mode_info: Some(ModeInfo {
                 sum: Some(mode_info::Sum::Single(mode_info::Single {
                     mode: SignMode::Direct.into(),
