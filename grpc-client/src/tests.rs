@@ -3,15 +3,14 @@ use crate::{cli::GrpcClient, networks::TEST_NET};
 use gotabit_sdk_proto::cosmos::bank::v1beta1::MsgSend;
 use gotabit_sdk_proto::cosmos::base::v1beta1::Coin;
 
-use cosmrs::crypto::secp256k1;
+use cosmrs::crypto::secp256k1::SigningKey;
 use gotabit_sdk_proto::cosmos::bank::v1beta1::QueryBalanceRequest;
 use gotabit_sdk_proto::cosmwasm::wasm::v1::QueryContractInfoRequest;
 
-use bip32::{Mnemonic, XPrv};
-
 const GIO_PREFIX: &'static str = "gio";
 
-const TEST_NET_MNEMONIC: &'static str = "nose enjoy rare comic champion cancel axis chronic fringe promote shield own twenty lab decline chat light stamp open pet salon lyrics mimic pride";
+const TEST_SENDER_PRIV_KEY: &'static str =
+    "a823f4ae943b511b7f082227c4f2f0737666d625e7b3431f238a7d4d4baec5f2";
 
 #[cfg(test)]
 #[tokio::test]
@@ -38,11 +37,9 @@ async fn test_create_grpc_client_and_query_balance() {
 
 #[tokio::test]
 async fn test_submit_tx() {
-    let mnemonic = Mnemonic::new(TEST_NET_MNEMONIC, bip32::Language::English).unwrap();
-    let seed = mnemonic.to_seed("password");
-    let root_xprv = XPrv::new(&seed).unwrap();
+    let sender_private_key =
+        SigningKey::from_slice(hex::decode(TEST_SENDER_PRIV_KEY).unwrap().as_slice()).unwrap();
 
-    let sender_private_key = secp256k1::SigningKey::try_from(root_xprv).unwrap();
     //let sender_private_key = secp256k1::SigningKey::from_slice(&vec![]).unwrap();
     let sender_public_key = sender_private_key.public_key();
     let sender_account_id = sender_public_key.account_id(GIO_PREFIX).unwrap();
