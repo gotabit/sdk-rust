@@ -67,7 +67,7 @@ async fn test_submit_tx() {
 
     let resp = client
         .broadcast_tx_sync(
-            &sender_private_key,
+            sender_private_key,
             &sender_account_id.to_string(),
             msg_send,
             &coin,
