@@ -139,7 +139,7 @@ impl GrpcClient {
     #[allow(clippy::too_many_arguments)]
     pub async fn broadcast_tx_sync<T>(
         &mut self,
-        sign_key: SigningKey,
+        sign_key: &SigningKey,
         addr: &String,
         msg: T,
         coin: &Coin,
