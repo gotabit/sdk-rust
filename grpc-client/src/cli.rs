@@ -88,6 +88,26 @@ pub struct GrpcClient {
 }
 
 impl GrpcClient {
+    /// Create a new instance of the Grpc client.
+    ///
+    /// # Arguments
+    ///
+    /// * `network` - The Gotabit network information for the client to connect to.
+    ///
+    /// # Errors
+    ///
+    /// * If the Grpc client fails to connect to the network.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use grpc_client::{cli::GrpcClient, networks};
+    /// use grpc_client::networks::NetworkInfo;
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let client = GrpcClient::new(&networks::TEST_NET).await.unwrap();
+    /// }
+    /// ```
     pub async fn new(network: &NetworkInfo) -> Result<Self, tonic::transport::Error> {
         let chan = tonic::transport::Channel::from_static(network.grpc_endpoint)
             .connect()
@@ -135,7 +155,54 @@ impl GrpcClient {
         })
     }
 
-    // Build a raw transaction. sign and broadcast it
+    /// Broadcast a transaction synchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `sign_key` - The signing key of the sender.
+    /// * `addr` - The address of the sender.
+    /// * `msg` - The message to be sent.
+    /// * `coin` - The coin to be sent.
+    /// * `memo` - The memo of the transaction.
+    /// * `timeout_height` - The timeout height of the transaction.
+    /// * `gas` - The gas limit of the transaction.
+    /// * `acct` - The account number and sequence number of the sender. If set to None, it will query from the gRPC node.
+    /// * `tx_tip` - The tip of the transaction.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<BroadcastTxResponse, Error>` - The result of the broadcast transaction.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use grpc_client::{cli::GrpcClient, networks};
+    /// use cosmrs::crypto::secp256k1::SigningKey;
+    /// use gotabit_sdk_proto::cosmos::base::v1beta1::Coin;
+    /// use gotabit_sdk_proto::cosmos::tx::v1beta1::BroadcastTxResponse;
+    /// use gotabit_sdk_proto::cosmos::bank::v1beta1::MsgSend;
+    ///     /// ```
+
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mut client = GrpcClient::new(&networks::TEST_NET).await.unwrap();
+    ///     let sign_key = SigningKey::from_slice(hex::decode("a823f4ae943b511b7f082227c4f2f0737666d625e7b3431f238a7d4d4baec5f2").unwrap().as_slice()).unwrap();
+    ///     let addr = "my_address".to_string();
+    ///     let msg_send = MsgSend {
+    ///         from_address: "from_address".to_string(),
+    ///         to_address: "to_address".to_string(),
+    ///         amount: vec![],
+    ///     };
+    ///     let coin = Coin{amount: "1000000000000000000".to_string(), denom: "ugtb".to_string()};
+    ///     let memo = "my_memo".to_string();
+    ///     let timeout_height = 0;
+    ///     let gas = 200000;
+    ///     let acct = None;
+    ///     let tx_tip = None;
+    ///
+    ///     let result = client.broadcast_tx_sync(&sign_key, &addr, msg_send, &coin, memo, timeout_height, gas, acct, tx_tip).await;
+    /// }
+    /// ```
     #[allow(clippy::too_many_arguments)]
     pub async fn broadcast_tx_sync<T>(
         &mut self,
@@ -234,7 +301,16 @@ impl GrpcClient {
         Ok(resp)
     }
 
-    // Call wasm query. and serde json response
+    /// Query the contract state.
+    ///
+    /// # Arguments
+    ///
+    /// * `contract_addr` - The address of the contract to query.
+    /// * `msg` - The query message to send to the contract.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<R, Box<dyn Error>>` - The result of the query.
     pub async fn wasm_query<Q: serde::Serialize, R: serde::de::DeserializeOwned>(
         &mut self,
         contract_addr: impl Into<String>,
